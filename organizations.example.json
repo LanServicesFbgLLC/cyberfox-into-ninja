@@ -1,0 +1,6 @@
+{
+  "_comment": "Map AutoElevate companies to NinjaOne organization ids. Keys may be the AutoElevate company id or its name (matched case-insensitively); values are NinjaOne organization ids. Copy to organizations.json and point SYNC_ORG_MAP_PATH at it. Entries whose value is not an integer are skipped with a warning, which is why this comment key is harmless.",
+  "Acme Corp": 12,
+  "Globex Industries": 34,
+  "1f4c9d20-0000-0000-0000-000000000000": 56
+}
