@@ -182,7 +182,16 @@ class AutoElevateClient:
             for item in batch:
                 yield ElevationEvent.from_payload(item)
 
-            if len(batch) < cfg.page_size:
+            skip += len(batch)
+
+            # Prefer the envelope's totalCount: a server that caps `take`
+            # below our page_size returns short pages mid-stream, which the
+            # short-page heuristic would misread as the end of the data.
+            total = payload.get("totalCount") if isinstance(payload, Mapping) else None
+            if isinstance(total, int):
+                if skip >= total:
+                    return
+            elif len(batch) < cfg.page_size:
                 return
             skip += len(batch)
 
