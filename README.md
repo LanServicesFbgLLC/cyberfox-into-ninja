@@ -11,7 +11,7 @@ AutoElevate Partner API  ──poll──▶  normalize ──▶ map to org ─
 
 Run it as a one-shot from cron/Task Scheduler, or leave `poll` running as a service.
 
-New to the project (or to API integrations in general)? **[how_it_works.md](how_it_works.md)**
+New to the project (or to API integrations in general)? **[HOW_IT_WORKS.md](HOW_IT_WORKS.md)**
 walks from zero knowledge to expert: the domain, the concepts, the
 architecture, and every design decision.
 
