@@ -172,6 +172,7 @@ src/cyberfox_into_ninja/
   sync.py         the poll cycle and its counters
   cli.py          check / run-once / poll / show-state
   http.py         retry + backoff, Retry-After aware
+  testing.py      unit-test library: in-process fakes of both APIs + factories
 ```
 
 Retries cover transport errors and 408/425/429/500/502/503/504 with exponential
@@ -186,4 +187,31 @@ Only runtime dependency is `httpx`.
 python -m pytest -q
 ```
 
-87 tests, all HTTP mocked with `respx` — no network, no credentials needed.
+All HTTP is faked in-process — no network, no credentials needed.
+
+### Unit-test library
+
+`cyberfox_into_ninja.testing` ships spec-accurate fakes of both upstream APIs
+so tests here (or in downstream projects) can drive the *real* clients without
+hand-rolling mock routes. Built on `httpx.MockTransport` only — no extra
+dependencies.
+
+```python
+from cyberfox_into_ninja.testing import FakeNinjaOne, FakePartnerAPI
+
+api = FakePartnerAPI()                    # enforces bearer auth, the beta
+api.add_event(computerName="WS-042")      # X-Acknowledgment header, take/skip
+with api.autoelevate_client() as client:  # paging (take capped at 200), and
+    events = client.fetch_events()        # start/end epoch-ms filtering
+
+ninja = FakeNinjaOne()                    # OAuth client_credentials grant,
+with ninja.ninjaone_client() as client:   # token validation, ticket capture
+    client.create_ticket({"subject": events[0].describe()})
+assert ninja.tickets[0]["id"] == 1
+```
+
+Useful knobs: `partner_api_event(**overrides)` builds a spec-exact event
+payload; `fake.fail_next(status)` injects a one-shot error; `ninja.
+expire_tokens()` invalidates issued tokens to exercise the refresh-and-retry
+path; `fake.requests` records every request for assertions. See
+`tests/test_testing_lib.py` for working examples of each.
