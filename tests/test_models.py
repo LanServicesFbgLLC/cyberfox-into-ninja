@@ -78,3 +78,31 @@ def test_pluck_skips_empty_values():
     data = {"a": "", "b": None, "c": "found"}
     assert pluck(data, ["a", "b", "c"]) == "found"
     assert pluck(data, ["a", "b"], default="fallback") == "fallback"
+
+
+def test_from_payload_maps_partner_api_event_shape():
+    """An event exactly as the published Partner API spec describes it."""
+    payload = {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "computerId": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+        "computerName": "WS-FINANCE-04",
+        "companyName": "Acme Industries",
+        "locationName": "Headquarters",
+        "data": {
+            "trigger": {"path": r"C:\Temp\setup.exe", "signer": "Acme Software"},
+            "user": {"name": "jdoe"},
+            "ruleThatApplied": {"name": "Allow signed installers"},
+        },
+        "createdAt": 1786874400000,
+    }
+
+    event = ElevationEvent.from_payload(payload)
+
+    assert event.event_id == "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    assert event.occurred_at == datetime(2026, 8, 16, 10, 0, tzinfo=timezone.utc)
+    assert event.computer_name == "WS-FINANCE-04"
+    assert event.company_name == "Acme Industries"
+    assert event.user_name == "jdoe"
+    assert event.process_path == r"C:\Temp\setup.exe"
+    assert event.publisher == "Acme Software"
+    assert event.rule_name == "Allow signed installers"

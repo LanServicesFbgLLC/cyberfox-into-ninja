@@ -15,22 +15,25 @@ Run it as a one-shot from cron/Task Scheduler, or leave `poll` running as a serv
 
 ## ⚠️ Read this before you run it
 
-The AutoElevate Partner API is in beta, and **its documentation was not
-reachable from the environment this was built in** —
-`partner-api-docs.autoelevate.com` and `support.cyberfox.com` are both blocked
-by the network egress policy. So the following are *configurable assumptions*,
-not confirmed facts:
+The AutoElevate Partner API is in **beta** and may change without notice. The
+defaults below match the published Partner API reference
+([partner-api-docs.autoelevate.com](https://partner-api-docs.autoelevate.com),
+spec v1.0.0); if the surface moves, everything is overridable via `.env` —
+**no code change should be needed**.
 
-| Assumption | Env var | Default |
+| Setting | Env var | Default |
 |---|---|---|
-| API base URL | `AE_BASE_URL` | `https://api.autoelevate.com` |
-| Events endpoint | `AE_EVENTS_PATH` | `/v1/events` |
-| Auth scheme | `AE_AUTH_STYLE` | `bearer` |
-| "Newer than" filter param | `AE_SINCE_PARAM` | `since` |
-| Paging params | `AE_PAGE_PARAM`, `AE_PAGE_SIZE_PARAM` | `page`, `limit` |
+| API base URL | `AE_BASE_URL` | `https://partner-api.autoelevate.com` |
+| Events endpoint | `AE_EVENTS_PATH` | `/api/v1/elevation-events` |
+| Auth scheme | `AE_AUTH_STYLE` | `bearer` (an **AE-BEARER** key with the `eventView` scope) |
+| "Newer than" filter param | `AE_SINCE_PARAM`, `AE_SINCE_FORMAT` | `start`, `epoch_ms` |
+| Paging params | `AE_PAGE_SIZE_PARAM`, `AE_SKIP_PARAM` | `take` (max 200), `skip` |
+| Beta acknowledgment | `AE_ACK_HEADER`, `AE_ACK_VALUE` | `X-Acknowledgment: i-understand-this-is-beta-and-may-change` |
 
-Reconcile these against the current beta docs, then set them in `.env`. **No
-code change should be needed** — that is the whole reason they are config.
+Create the API key in the AutoElevate admin portal (a **Service** user is
+recommended for a clean audit trail); the secret is shown once and cannot be
+retrieved again. The beta acknowledgment header is mandatory on every request
+— the client sends it automatically.
 
 Two things are deliberately tolerant, so a wrong guess degrades gracefully
 rather than breaking or looping:

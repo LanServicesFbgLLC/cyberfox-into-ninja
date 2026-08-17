@@ -62,24 +62,35 @@ def _get_list(name: str, default: Optional[List[str]] = None) -> List[str]:
 class AutoElevateConfig:
     """Connection details for the CyberFOX AutoElevate Partner API (beta).
 
-    ``base_url`` and ``events_path`` are placeholders until the Partner API
-    documentation is reachable from this environment -- override both via env
-    vars once the real values are confirmed.
+    Defaults match the published Partner API reference
+    (partner-api-docs.autoelevate.com, spec v1.0.0): bearer auth with an
+    AE-BEARER key, offset paging via ``take``/``skip``, epoch-millisecond
+    ``start`` filtering, and a mandatory beta acknowledgment header. Everything
+    stays overridable via env vars because the API is still beta and may move.
     """
 
-    base_url: str = "https://api.autoelevate.com"
-    events_path: str = "/v1/events"
+    base_url: str = "https://partner-api.autoelevate.com"
+    events_path: str = "/api/v1/elevation-events"
     api_key: str = ""
     # How the API key is presented. "bearer" -> Authorization: Bearer <key>,
     # "header" -> <auth_header>: <key>, "query" -> ?<auth_header>=<key>.
+    # The Partner API uses "bearer" with a key created under the AE-BEARER
+    # scheme (it also offers a custom HMAC scheme this client does not speak).
     auth_style: str = "bearer"
     auth_header: str = "X-Api-Key"
-    page_size: int = 100
+    page_size: int = 100  # API caps `take` at 200.
     max_pages: int = 50
-    # Query parameter names the API uses for cursoring/paging.
-    since_param: str = "since"
-    page_param: str = "page"
-    page_size_param: str = "limit"
+    # Query parameter names for filtering/paging.
+    since_param: str = "start"
+    skip_param: str = "skip"
+    page_size_param: str = "take"
+    # "epoch_ms" sends the since filter as epoch milliseconds (what the
+    # Partner API expects); "iso" sends an ISO-8601 UTC string.
+    since_format: str = "epoch_ms"
+    # The beta acknowledgment header is required verbatim on every request.
+    # Set AE_ACK_VALUE to empty to stop sending it once the API leaves beta.
+    ack_header: str = "X-Acknowledgment"
+    ack_value: str = "i-understand-this-is-beta-and-may-change"
     timeout_seconds: float = 30.0
 
     @classmethod
@@ -93,13 +104,20 @@ class AutoElevateConfig:
             page_size=_get_int("AE_PAGE_SIZE", cls.page_size),
             max_pages=_get_int("AE_MAX_PAGES", cls.max_pages),
             since_param=_get("AE_SINCE_PARAM", cls.since_param),
-            page_param=_get("AE_PAGE_PARAM", cls.page_param),
+            skip_param=_get("AE_SKIP_PARAM", cls.skip_param),
             page_size_param=_get("AE_PAGE_SIZE_PARAM", cls.page_size_param),
+            since_format=_get("AE_SINCE_FORMAT", cls.since_format).lower(),
+            ack_header=_get("AE_ACK_HEADER", cls.ack_header),
+            ack_value=os.environ.get("AE_ACK_VALUE", cls.ack_value),
             timeout_seconds=float(_get_int("AE_TIMEOUT_SECONDS", int(cls.timeout_seconds))),
         )
         if cfg.auth_style not in {"bearer", "header", "query"}:
             raise ConfigError(
                 f"AE_AUTH_STYLE must be one of bearer|header|query, got {cfg.auth_style!r}"
+            )
+        if cfg.since_format not in {"epoch_ms", "iso"}:
+            raise ConfigError(
+                f"AE_SINCE_FORMAT must be one of epoch_ms|iso, got {cfg.since_format!r}"
             )
         return cfg
 

@@ -12,7 +12,7 @@ from cyberfox_into_ninja.errors import ConfigError
 
 TOKEN_URL = "https://us2.ninjarmm.com/ws/oauth/token"
 ORGS_URL = "https://us2.ninjarmm.com/v2/organizations"
-EVENTS_URL = "https://ae.test/v1/events"
+EVENTS_URL = "https://ae.test/api/v1/elevation-events"
 
 
 @pytest.fixture

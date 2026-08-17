@@ -1,14 +1,20 @@
 """Client for the CyberFOX AutoElevate Partner API (beta).
 
-BETA SURFACE -- READ THIS BEFORE DEBUGGING
-------------------------------------------
-The Partner API documentation (partner-api-docs.autoelevate.com) was not
-reachable when this module was written, so the base URL, the events path, the
-auth style and the pagination parameter names are all *assumptions* driven by
-config rather than hard-coded knowledge. Every one of them is overridable with
-an ``AE_*`` environment variable -- see .env.example.
+Defaults now match the published Partner API reference
+(partner-api-docs.autoelevate.com, spec v1.0.0):
 
-What is deliberately robust here:
+* Base URL ``https://partner-api.autoelevate.com``, events at
+  ``GET /api/v1/elevation-events`` (requires the ``eventView`` scope).
+* Bearer auth with a key created under the **AE-BEARER** scheme.
+* Offset paging via ``take`` (max 200) and ``skip``.
+* Date filtering via ``start``/``end`` in epoch milliseconds.
+* A mandatory beta header on every request:
+  ``X-Acknowledgment: i-understand-this-is-beta-and-may-change``.
+* Responses arrive as ``{"items": [...], "totalCount": n}``.
+
+The API is still beta, so every one of these remains overridable with an
+``AE_*`` environment variable -- see .env.example. Robustness kept from the
+pre-docs era:
 
 * Paging stops on an empty page, a repeated page, or ``max_pages``, so a wrong
   parameter name degrades into "one page fetched" rather than an infinite loop.
@@ -99,6 +105,8 @@ class AutoElevateClient:
         merged = dict(params)
         merged.update(self._auth_params())
         headers = {"Accept": "application/json"}
+        if self.config.ack_value:
+            headers[self.config.ack_header] = self.config.ack_value
         headers.update(self._auth_headers())
 
         response = request(self._client, "GET", url, params=merged, headers=headers)
@@ -135,33 +143,39 @@ class AutoElevateClient:
 
     # -- public API ------------------------------------------------------
 
+    def _format_since(self, since: datetime) -> Any:
+        if self.config.since_format == "epoch_ms":
+            return int(since.timestamp() * 1000)
+        return format_timestamp(since)
+
     def iter_events(self, since: Optional[datetime] = None) -> Iterator[ElevationEvent]:
         """Yield events newer than ``since``, walking pages until exhausted."""
         cfg = self.config
         seen_signatures: set = set()
+        skip = 0
 
-        for page in range(1, cfg.max_pages + 1):
+        for _page in range(1, cfg.max_pages + 1):
             params: Dict[str, Any] = {
                 cfg.page_size_param: cfg.page_size,
-                cfg.page_param: page,
+                cfg.skip_param: skip,
             }
             if since is not None:
-                params[cfg.since_param] = format_timestamp(since)
+                params[cfg.since_param] = self._format_since(since)
 
             payload = self._get(cfg.events_path, params)
             batch = extract_collection(payload)
             if not batch:
-                log.debug("AutoElevate page %s returned no events; stopping", page)
+                log.debug("AutoElevate skip=%s returned no events; stopping", skip)
                 return
 
-            # Guard against an API that ignores the page parameter and keeps
+            # Guard against an API that ignores the skip parameter and keeps
             # handing back the same first page forever.
             signature = tuple(
                 str(item.get("id") or item.get("eventId") or item.get("event_id") or idx)
                 for idx, item in enumerate(batch)
             )
             if signature in seen_signatures:
-                log.debug("AutoElevate page %s repeated a previous page; stopping", page)
+                log.debug("AutoElevate skip=%s repeated a previous page; stopping", skip)
                 return
             seen_signatures.add(signature)
 
@@ -170,6 +184,7 @@ class AutoElevateClient:
 
             if len(batch) < cfg.page_size:
                 return
+            skip += len(batch)
 
         log.warning(
             "Stopped after AE_MAX_PAGES (%s) pages; raise it if backlogs are being truncated",
