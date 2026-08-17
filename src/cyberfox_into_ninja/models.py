@@ -74,7 +74,7 @@ FIELD_CANDIDATES: Dict[str, List[str]] = {
     "computer_id": ["computerId", "computer_id", "machineId", "computer.id", "device.id"],
     "user_name": [
         "userName", "user_name", "requestedBy", "requested_by", "user.name",
-        "user.username", "initiatedBy",
+        "data.user.name", "user.username", "initiatedBy",
     ],
     "company_name": [
         "companyName", "company_name", "clientName", "organizationName",
@@ -86,16 +86,27 @@ FIELD_CANDIDATES: Dict[str, List[str]] = {
     ],
     "process_name": [
         "processName", "process_name", "fileName", "file_name",
+        "data.trigger.fileName", "data.trigger.name",
         "application", "process.name", "file.name",
     ],
     "process_path": [
         "processPath", "process_path", "filePath", "file_path", "path",
+        "data.trigger.path", "data.trigger.filePath",
         "process.path", "file.path",
     ],
-    "publisher": ["publisher", "signer", "certificateSubject", "file.publisher", "vendor"],
-    "file_hash": ["hash", "sha256", "fileHash", "file_hash", "file.hash", "file.sha256"],
+    "publisher": [
+        "publisher", "signer", "certificateSubject", "data.trigger.signer",
+        "data.trigger.publisher", "file.publisher", "vendor",
+    ],
+    "file_hash": [
+        "hash", "sha256", "fileHash", "file_hash", "data.trigger.hash",
+        "data.trigger.sha256", "file.hash", "file.sha256",
+    ],
     "reason": ["reason", "justification", "comment", "note", "userReason"],
-    "rule_name": ["ruleName", "rule_name", "policyName", "rule.name", "policy.name"],
+    "rule_name": [
+        "ruleName", "rule_name", "policyName", "data.ruleThatApplied.name",
+        "rule.name", "policy.name",
+    ],
     "command_line": ["commandLine", "command_line", "cmdline", "process.commandLine"],
 }
 

@@ -48,13 +48,68 @@ def test_fetch_events_sends_since_and_paging_params(ae_config, sample_event):
         return_value=httpx.Response(200, json={"data": [sample_event]})
     )
 
+    since = datetime(2026, 8, 16, 9, 0, tzinfo=timezone.utc)
+    with AutoElevateClient(ae_config) as client:
+        client.fetch_events(since=since)
+
+    params = route.calls[0].request.url.params
+    assert params["start"] == str(int(since.timestamp() * 1000))
+    assert params["take"] == "2"
+    assert params["skip"] == "0"
+
+
+@respx.mock
+def test_fetch_events_iso_since_format(ae_config, sample_event):
+    ae_config.since_format = "iso"
+    route = respx.get("https://ae.test/v1/events").mock(
+        return_value=httpx.Response(200, json={"data": [sample_event]})
+    )
+
     with AutoElevateClient(ae_config) as client:
         client.fetch_events(since=datetime(2026, 8, 16, 9, 0, tzinfo=timezone.utc))
 
-    params = route.calls[0].request.url.params
-    assert params["since"] == "2026-08-16T09:00:00Z"
-    assert params["limit"] == "2"
-    assert params["page"] == "1"
+    assert route.calls[0].request.url.params["start"] == "2026-08-16T09:00:00Z"
+
+
+@respx.mock
+def test_skip_advances_by_batch_size(ae_config, sample_event):
+    route = respx.get("https://ae.test/v1/events")
+    route.side_effect = [
+        httpx.Response(200, json={"items": [dict(sample_event, id="e1"), dict(sample_event, id="e2")]}),
+        httpx.Response(200, json={"items": [dict(sample_event, id="e3")]}),
+    ]
+
+    with AutoElevateClient(ae_config) as client:
+        client.fetch_events()
+
+    assert route.calls[0].request.url.params["skip"] == "0"
+    assert route.calls[1].request.url.params["skip"] == "2"
+
+
+@respx.mock
+def test_beta_acknowledgment_header_sent(ae_config, sample_event):
+    route = respx.get("https://ae.test/v1/events").mock(
+        return_value=httpx.Response(200, json={"items": [sample_event]})
+    )
+
+    with AutoElevateClient(ae_config) as client:
+        client.fetch_events()
+
+    headers = route.calls[0].request.headers
+    assert headers["X-Acknowledgment"] == "i-understand-this-is-beta-and-may-change"
+
+
+@respx.mock
+def test_acknowledgment_header_can_be_disabled(ae_config, sample_event):
+    ae_config.ack_value = ""
+    route = respx.get("https://ae.test/v1/events").mock(
+        return_value=httpx.Response(200, json={"items": [sample_event]})
+    )
+
+    with AutoElevateClient(ae_config) as client:
+        client.fetch_events()
+
+    assert "X-Acknowledgment" not in route.calls[0].request.headers
 
 
 @respx.mock
