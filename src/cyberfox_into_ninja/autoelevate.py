@@ -193,7 +193,6 @@ class AutoElevateClient:
                     return
             elif len(batch) < cfg.page_size:
                 return
-            skip += len(batch)
 
         log.warning(
             "Stopped after AE_MAX_PAGES (%s) pages; raise it if backlogs are being truncated",
