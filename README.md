@@ -1,5 +1,6 @@
 # cyberfox-into-ninja
-
+ | |
+  W
 Polls the **CyberFOX AutoElevate Partner API (beta)** for elevation events and
 files a matching **NinjaOne** ticket for each one.
 
